@@ -151,7 +151,8 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .addrow{display:flex;align-items:center;gap:10px;padding:8px 0 10px}
 .addrow+.row,.row+.addrow{border-top:1px solid #E9ECF1}
 .addrow .dash{width:24px;height:24px;flex-shrink:0;box-sizing:border-box;border-radius:12px;border:2px dashed #C9CDD6}
-.addrow input{flex:1;min-width:0;border:0;background:transparent;font-size:15px;font-weight:600;padding:4px 0;outline:none}
+.addrow input{flex:1;min-width:0;border:0;background:transparent;font-size:16px;font-weight:600;padding:4px 0;outline:none}
+.add-go{height:32px;padding:0 12px;border-radius:10px;border:0;background:var(--ink);color:#fff;font-weight:800;font-size:13px;flex-shrink:0}
 .note{font-size:14px;font-weight:600;line-height:1.45;color:var(--soft);background:transparent;border:0;width:100%;resize:none;padding:0;margin-top:14px;outline:none}
 .mini{font-size:11px;font-weight:800;padding:3px 8px;border-radius:8px;border:0;white-space:nowrap}
 .mini.have{background:var(--g-tint);color:var(--g-text)}
@@ -588,7 +589,7 @@ function row(done,type,id,title,right){
   return '<div class="row"><button class="ck'+sq+(done?' on':'')+'" data-a="tick" data-t="'+type+'" data-id="'+id+'" aria-pressed="'+!!done+'" aria-label="'+(done?'Снять отметку':'Отметить')+': '+esc(title)+'"><svg viewBox="0 0 24 24"><path d="'+IC.check+'"></path></svg></button>'+
     '<button class="t'+(done?' done':'')+'" data-a="sheet-'+type+'" data-id="'+id+'">'+esc(title)+'</button>'+(right?'<span class="r num'+rc+'">'+esc(right)+'</span>':'')+'</div>';
 }
-function addRow(id,type,ph,extra){ return '<div class="addrow"><span class="dash'+(type==='buy'||type==='store'?' sq':'')+'"></span><label for="'+id+'" class="sr">'+esc(ph)+'</label><input id="'+id+'" data-add="'+type+'"'+(extra?' data-x="'+extra+'"':'')+' placeholder="'+esc(ph)+'" autocomplete="off" enterkeyhint="done"></div>'; }
+function addRow(id,type,ph,extra){ return '<div class="addrow"><span class="dash'+(type==='buy'||type==='store'?' sq':'')+'"></span><label for="'+id+'" class="sr">'+esc(ph)+'</label><input id="'+id+'" data-add="'+type+'"'+(extra?' data-x="'+extra+'"':'')+' placeholder="'+esc(ph)+'" autocomplete="off" enterkeyhint="done"><button class="add-go" data-a="add-go" data-for="'+id+'">Добавить</button></div>'; }
 
 var AVA=['var(--o-tint)','var(--g-tint)','#FFFFFF'];
 function vGuests(e){
@@ -763,15 +764,15 @@ function delSheet(btn){
 }
 
 /* ---------- actions ---------- */
-function addItem(input){
+function addItem(input,keep){ if(keep===undefined) keep=true;
   var type=input.dataset.add, text=input.value.trim(); if(!text) return;
   var e=ev();
-  if(type==='idea'){ S.ideas.unshift({id:uid(),title:text,text:'',link:''}); save(); render(input.id); return; }
+  if(type==='idea'){ S.ideas.unshift({id:uid(),title:text,text:'',link:''}); save(); render(keep?input.id:null); return; }
   if(type==='task') e.tasks.push({id:uid(),sec:R.k,title:text,date:'',done:false});
   if(type==='buy'){ var m=text.match(/^(.*?)[\s,]+\$?\s?(\d[\d\s]*(?:[.,]\d+)?)\s*\$?$/); e.buys.push({id:uid(),sec:R.k,title:m?m[1].trim():text,price:m?num(m[2]):0,done:false}); }
   if(type==='ing'){ var d=e.dishes.find(function(x){return x.id===input.dataset.x;}); var parts=text.split(','); d.ing.push({id:uid(),name:parts[0].trim(),qty:parts.slice(1).join(',').trim(),st:'buy'}); }
   if(type==='store'){ var p=text.split(','), q=num(p[1])||1; S.store.push({id:uid(),name:p[0].trim(),qty:q}); }
-  save(); render(input.id);
+  save(); render(keep?input.id:null);
 }
 function quickAdd(sid){
   var e=ev(), text=UI.quick.trim(); if(!text){ var q=document.getElementById('qa'); if(q) q.focus(); return; }
@@ -785,6 +786,7 @@ function act(a,el){
     case 'home': go({name:'home'}); break;
     case 'go-settings': go({name:'settings'}); break;
     case 'nav': go({name:el.dataset.v}); break;
+    case 'add-go': { var ai=document.getElementById(el.dataset.for); if(ai&&ai.value.trim()) addItem(ai); else if(ai) ai.focus(); break; }
     case 'sign-in': signIn(false); break;
     case 'sign-up': signIn(true); break;
     case 'sync-now': syncNow().then(function(){ render(); }); break;
@@ -839,6 +841,11 @@ document.addEventListener('keydown',function(k){
   if(k.key==='Enter'&&t.dataset&&t.dataset.add){ k.preventDefault(); addItem(t); }
   if(k.key==='Enter'&&t.id==='qa'){ k.preventDefault(); quickAdd(); }
   if(k.key==='Escape'&&UI.sheet){ UI.sheet=null; render(); }
+});
+document.addEventListener('focusout',function(f){
+  var t=f.target; if(!t.dataset||!t.dataset.add||!t.value.trim()) return;
+  var to=f.relatedTarget; if(to&&to.dataset&&to.dataset.a==='add-go') return;
+  setTimeout(function(){ if(document.body.contains(t)&&t.value.trim()) addItem(t,false); },0);
 });
 document.addEventListener('input',function(i){
   if(i.target.id==='qa'){ UI.quick=i.target.value; var c=document.getElementById('qa-chips'); if(c) c.innerHTML=vChips(); }
