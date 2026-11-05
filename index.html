@@ -384,6 +384,19 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .ev-cover img{width:100%;height:100%;object-fit:cover;display:block}
 .ev.has-cover .t{flex:1;min-width:0}
 .cover .cover-back{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.92);color:var(--ink)}
+.zone-ph{display:block;border:0;padding:0;margin:-12px -12px 4px;width:calc(100% + 24px);height:130px;overflow:hidden;border-radius:18px 18px 0 0;background:#E3E7EE}
+.zone-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.zone-r{display:flex;align-items:center;gap:4px;flex:none}
+.zone .chev{color:#8A93A6}
+button.zone-d{border:0;background:none;padding:0;text-align:left;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.zone-lbl{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:4px}
+.zone-subs{margin:2px 0 4px 4px}
+.zone-subs .zone-lbl{margin:0 0 2px}
+.ev-subs{margin:0 0 6px 14px}
+.prop-row{gap:8px}
+.prop-ed{flex:1;min-width:0;border:0;background:transparent;font-size:16px;font-weight:600;padding:4px 0;outline:none;border-radius:6px;color:inherit}
+.prop-qty{width:64px;flex:none;border:0;background:transparent;font-size:16px;font-weight:600;color:var(--muted);padding:4px 0;outline:none;border-radius:6px;text-align:right}
+.prop-ed:focus,.prop-qty:focus{background:#fff;box-shadow:0 0 0 2px #BDBDFB;padding:4px 6px}
 .close-all{align-self:flex-start;margin:0 0 8px 32px;height:32px;padding:0 12px;border-radius:10px;border:0;background:#BDBDFB;font-weight:800;font-size:13px;color:var(--ink)}
 .qa.todo{bottom:calc(66px + env(safe-area-inset-bottom,0px));box-shadow:none;background:transparent;padding-bottom:0}
 .qa.todo .qa-in{padding-bottom:8px}
@@ -504,7 +517,7 @@ function defaultSections(){ return [
   {id:uid(),name:'Декор',kind:'decor',icon:'decor'},
   {id:uid(),name:'Еда',kind:'food',icon:'food'},
   {id:uid(),name:'Зоны',kind:'zones',icon:'zones'}]; }
-function migrate(d){ if(!d||!d.events) return d; d.events.forEach(function(e){ e.insp=e.insp||[]; e.zones=e.zones||[]; e.sections=e.sections||[]; e.tasks.forEach(function(t){ if(!t.subs) t.subs=[]; if(t.note==null) t.note=''; }); if(!e.sections.some(function(s){return s.kind==='general';})) e.sections.unshift({id:uid(),name:'Общее',kind:'general',icon:'general'}); }); if(!d.store) d.store=[]; if(!d.shop) d.shop=[]; if(!d.shopHist) d.shopHist={}; if(!d.todos) d.todos=[]; return d; }
+function migrate(d){ if(!d||!d.events) return d; d.events.forEach(function(e){ e.insp=e.insp||[]; e.zones=e.zones||[]; e.sections=e.sections||[]; e.tasks.forEach(function(t){ if(!t.subs) t.subs=[]; if(t.note==null) t.note=''; }); e.zones.forEach(function(z){ if(!z.subs) z.subs=[]; if(!z.props) z.props=[]; if(z.photo==null) z.photo=''; }); if(!e.sections.some(function(s){return s.kind==='general';})) e.sections.unshift({id:uid(),name:'Общее',kind:'general',icon:'general'}); }); if(!d.store) d.store=[]; if(!d.shop) d.shop=[]; if(!d.shopHist) d.shopHist={}; if(!d.todos) d.todos=[]; return d; }
 function newEvent(o){ return Object.assign({id:uid(),title:'',date:isoPlus(14),time:'19:00',size:'small',price:0,seats:0,budget:0,concept:'',
   sections:defaultSections(),tasks:[],buys:[],storeUse:[],dishes:[],guests:[],expenses:[],insp:[],zones:[],createdAt:Date.now()},o||{}); }
 function seed(){
@@ -655,7 +668,7 @@ function secById(e,id){ return e.sections.find(function(s){return s.id===id;}); 
 function secItems(e,sid){
   var t=e.tasks.filter(function(x){return x.sec===sid;}), b=e.buys.filter(function(x){return x.sec===sid;});
   var s=secById(e,sid), u=(s&&s.kind==='decor')?e.storeUse:[];
-  var pr=[]; if(s&&s.kind==='zones') (e.zones||[]).forEach(function(z){ if(z.sec===sid) z.props.forEach(function(g){ pr.push({done:g.st==='have'||g.st==='store'}); }); });
+  var pr=[]; if(s&&s.kind==='zones') (e.zones||[]).forEach(function(z){ if(z.sec===sid) z.props.forEach(function(g){ pr.push({done:g.st==='have'||g.st==='store'}); }); (z.subs||[]).forEach(function(x){ pr.push({done:x.done}); }); });
   var all=t.length+b.length+u.length+pr.length, done=t.filter(d).length+b.filter(d).length+u.filter(d).length+pr.filter(d).length;
   function d(x){return x.done;}
   return {all:all,done:done};
@@ -797,9 +810,16 @@ function tdRow(t){
   }
   return h+'</div>';
 }
-function subsField(o){ return '<div class="field"><span class="lbl">Подзадачи</span><div class="lav-list" style="margin-top:0">'+(o.subs||[]).map(function(x){ return '<div class="row"><button class="ck sq'+(x.done?' on':'')+'" data-a="sub-tick" data-t="'+o.id+'" data-id="'+x.id+'" aria-pressed="'+!!x.done+'" aria-label="Отметить: '+esc(x.title)+'"><svg viewBox="0 0 24 24"><path d="'+IC.check+'"></path></svg></button>'+subEd(o.id,x)+'<button class="mini buy" data-a="sub-del" data-t="'+o.id+'" data-id="'+x.id+'" aria-label="Удалить подпункт">×</button></div>'; }).join('')+
-      addRow('add-sub-s-'+o.id,'sub','Подпункт…',o.id)+'</div></div>'; }
-function subOwner(tid){ var o=S.todos.find(function(x){return x.id===tid;}); if(o) return o; for(var i=0;i<S.events.length;i++){ o=S.events[i].tasks.find(function(x){return x.id===tid;}); if(o) return o; } return null; }
+function taskRowFull(t){ var sb=t.subs||[], op=!!(UI.tdOpen||{})[t.id];
+  var h=row(t.done,'task',t.id,t.title,t.date?fmtShort(t.date):'',(t.note?'<span class="t-note" aria-label="Есть описание">'+ic('edit')+'</span>':'')+(sb.length?'<span class="t-subs num">'+sb.filter(function(x){return x.done;}).length+'/'+sb.length+'</span>':''));
+  if(sb.length) h=h.replace(/<\/div>$/,'<button class="chev" data-a="td-toggle" data-id="'+t.id+'" aria-expanded="'+op+'" aria-label="Подзадачи">'+ic(op?'up':'down')+'</button></div>');
+  if(op&&sb.length) h+='<div class="subs ev-subs">'+sb.map(function(x){ return '<div class="row"><button class="ck sq'+(x.done?' on':'')+'" data-a="sub-tick" data-t="'+t.id+'" data-id="'+x.id+'" aria-pressed="'+!!x.done+'" aria-label="Отметить: '+esc(x.title)+'"><svg viewBox="0 0 24 24"><path d="'+IC.check+'"></path></svg></button>'+subEd(t.id,x)+'</div>'; }).join('')+addRow('add-sub-'+t.id,'sub','Подпункт…',t.id)+'</div>';
+  return h; }
+function subsField(o,lbl){ return '<div class="field"><span class="lbl">'+(lbl||'Подзадачи')+'</span><div class="lav-list" style="margin-top:0">'+(o.subs||[]).map(function(x){ return '<div class="row"><button class="ck sq'+(x.done?' on':'')+'" data-a="sub-tick" data-t="'+o.id+'" data-id="'+x.id+'" aria-pressed="'+!!x.done+'" aria-label="Отметить: '+esc(x.title)+'"><svg viewBox="0 0 24 24"><path d="'+IC.check+'"></path></svg></button>'+subEd(o.id,x)+'<button class="mini buy" data-a="sub-del" data-t="'+o.id+'" data-id="'+x.id+'" aria-label="Удалить подпункт">×</button></div>'; }).join('')+
+      addRow('add-sub-s-'+o.id,'sub',lbl?'Новая задача…':'Подпункт…',o.id)+'</div></div>'; }
+function propDel(e,z,g){ if(!g) return; z.props=z.props.filter(function(x){return x!==g;});
+  if(g.st==='listed'){ var t0=g.name+(g.qty?' '+g.qty:''); e.buys=e.buys.filter(function(b){ return b.done||!(b.id===g.buyId||(!g.buyId&&b.sec===z.sec&&b.title===t0)); }); } }
+function subOwner(tid){ var o=S.todos.find(function(x){return x.id===tid;}); if(o) return o; for(var i=0;i<S.events.length;i++){ o=S.events[i].tasks.find(function(x){return x.id===tid;})||(S.events[i].zones||[]).find(function(x){return x.id===tid;}); if(o) return o; } return null; }
 function subEd(tid,x){ return '<input class="t sub-ed'+(x.done?' done':'')+'" data-sub-t="'+tid+'" data-sub-id="'+x.id+'" value="'+esc(x.title)+'" aria-label="Подпункт" autocomplete="off" enterkeyhint="done">'; }
 function vTodoList(list){
   var all=S.todos.filter(function(t){return t.list===list;});
@@ -935,16 +955,16 @@ function secBody(e,k){
   h+='<div class="sec-card '+tone+'"><div class="row1"><h1>'+esc(s.name)+'</h1><small class="num">'+q.done+' из '+q.all+' готово</small></div><div class="bar"><i style="width:'+pct(q.done,q.all)+'%"></i></div></div>';
   var tasks=e.tasks.filter(function(t){return t.sec===k;}).sort(function(a,b){return (a.done-b.done)||((a.date||'9')>(b.date||'9')?1:-1);});
   var buys0=e.buys.filter(function(b){return b.sec===k;});
-  var tabs=s.kind==='general'?['tasks']:['insp']; if(s.kind==='food') tabs.push('menu'); if(s.kind==='zones') tabs.push('zones'); if(s.kind!=='general') tabs.push('tasks','buy'); if(s.kind==='decor') tabs.push('store');
-  var cur=SUB[k]; if(tabs.indexOf(cur)<0){ var dn=daysUntil(e.date); cur=(dn!==null&&dn>14)?'insp':'tasks'; } if(tabs.indexOf(cur)<0) cur=tabs[0];
+  var tabs=s.kind==='general'?['tasks']:['insp']; if(s.kind==='food') tabs.push('menu'); if(s.kind==='zones') tabs.push('zones'); if(s.kind==='zones') tabs.push('buy'); else if(s.kind!=='general') tabs.push('tasks','buy'); if(s.kind==='decor') tabs.push('store');
+  var cur=SUB[k]; if(tabs.indexOf(cur)<0){ var dn=daysUntil(e.date); cur=(dn!==null&&dn>14)?'insp':'tasks'; } if(cur==='tasks'&&s.kind==='zones') cur='zones'; if(tabs.indexOf(cur)<0) cur=tabs[0];
   var dn2=function(a){return a.filter(function(x){return x.done;}).length;};
   var cnt={insp:String(e.insp.filter(function(x){return x.sec===k;}).length||''),tasks:tasks.length?dn2(tasks)+'/'+tasks.length:'',buy:buys0.length?dn2(buys0)+'/'+buys0.length:'',
-    store:e.storeUse.length?dn2(e.storeUse)+'/'+e.storeUse.length:'',menu:String(e.dishes.length||''),zones:String(e.zones.filter(function(z){return z.sec===k;}).length||'')};
+    store:e.storeUse.length?dn2(e.storeUse)+'/'+e.storeUse.length:'',menu:String(e.dishes.length||''),zones:String(e.zones.filter(function(z){return z.sec===k;}).length||'')}; if(s.kind==='zones'){ var zt=[]; e.zones.forEach(function(z){ if(z.sec===k) zt=zt.concat(z.subs||[]); }); if(zt.length) cnt.zones=dn2(zt)+'/'+zt.length; }
   var LAB={insp:'Вдохновение',tasks:'Задачи',buy:'Купить',store:'Склад',menu:'Меню',zones:'Зоны'};
   if(tabs.length>1) h+='<div class="subtabs" role="tablist">'+tabs.map(function(t){ return '<button role="tab" aria-selected="'+(t===cur)+'" class="'+(t===cur?'on':'')+'" data-a="sub" data-k="'+k+'" data-v="'+t+'">'+LAB[t]+(cnt[t]?'<span class="num">'+cnt[t]+'</span>':'')+'</button>'; }).join('')+'</div>';
   if(cur==='insp') h+=inspBlock(e,k);
   if(cur==='tasks') h+=block('Задачи',tasks.filter(function(t){return t.done;}).length+' из '+tasks.length,
-    tasks.map(function(t){ var sb=t.subs||[]; return row(t.done,'task',t.id,t.title,t.date?fmtShort(t.date):'',(t.note?'<span class="t-note" aria-label="Есть описание">'+ic('edit')+'</span>':'')+(sb.length?'<span class="t-subs num">'+sb.filter(function(x){return x.done;}).length+'/'+sb.length+'</span>':'')); }).join('')+addRow('add-task-'+k,'task','Новая задача…'),'task');
+    tasks.map(taskRowFull).join('')+addRow('add-task-'+k,'task','Новая задача…'),'task');
   if(cur==='menu'){
     h+='<div class="block"><div class="block-h"><h3>Меню</h3><small>'+e.dishes.length+' '+plural(e.dishes.length,['блюдо','блюда','блюд'])+' · на '+(people(e.guests)||e.seats||0)+' чел.</small></div>';
     e.dishes.forEach(function(d){
@@ -960,12 +980,23 @@ function secBody(e,k){
     var zs=e.zones.filter(function(z){return z.sec===k;});
     h+='<div class="block"><div class="block-h"><h3>Зоны</h3><small>'+zs.length+'</small></div>';
     zs.forEach(function(z){
-      h+='<div class="dish"><div class="dish-h"><button data-a="sheet-zone" data-id="'+z.id+'">'+esc(z.name)+'</button>'+(z.owner?'<span class="mini have">'+esc(z.owner)+'</span>':'')+'</div>'+(z.desc?'<p class="zone-d">'+esc(z.desc)+'</p>':'')+'<div class="list">'+
+      var zsb=z.subs||[], zdn=zsb.filter(function(x){return x.done;}).length, zop=!!(UI.tdOpen||{})[z.id];
+      h+='<div class="dish zone">'+(z.photo?'<button class="zone-ph" data-a="sheet-zone" data-id="'+z.id+'" aria-label="Открыть зону">'+img(z.photo,'','')+'</button>':'')+
+        '<div class="dish-h"><button data-a="sheet-zone" data-id="'+z.id+'">'+esc(z.name)+'</button><span class="zone-r">'+(zsb.length?'<span class="t-subs num">'+zdn+'/'+zsb.length+'</span>':'')+
+        '<button class="chev" data-a="td-toggle" data-id="'+z.id+'" aria-expanded="'+zop+'" aria-label="Задачи зоны">'+ic(zop?'up':'down')+'</button></span></div>'+
+        (z.desc?'<button class="zone-d" data-a="sheet-zone" data-id="'+z.id+'">'+esc(z.desc)+'</button>':'');
+      if(zop) h+='<div class="subs zone-subs"><span class="zone-lbl">Задачи</span>'+zsb.map(function(x){ return '<div class="row"><button class="ck sq'+(x.done?' on':'')+'" data-a="sub-tick" data-t="'+z.id+'" data-id="'+x.id+'" aria-pressed="'+!!x.done+'" aria-label="Отметить: '+esc(x.title)+'"><svg viewBox="0 0 24 24"><path d="'+IC.check+'"></path></svg></button>'+subEd(z.id,x)+'<button class="mini buy" data-a="sub-del" data-t="'+z.id+'" data-id="'+x.id+'" aria-label="Удалить задачу">×</button></div>'; }).join('')+
+        addRow('add-sub-'+z.id,'sub','Новая задача…',z.id)+'</div>';
+      h+='<span class="zone-lbl">Реквизит</span><div class="list">'+
         z.props.map(function(g){ var lab={have:'есть',store:'со склада',buy:'купить',listed:'в покупках'}[g.st]||'купить';
-          return '<div class="row"><span class="t">'+esc(g.name)+(g.qty?' <span class="muted">· '+esc(g.qty)+'</span>':'')+'</span><button class="mini '+g.st+'" data-a="prop" data-z="'+z.id+'" data-id="'+g.id+'">'+lab+'</button></div>'; }).join('')+
+          return '<div class="row prop-row"><input class="t prop-ed" data-pz="'+z.id+'" data-pid="'+g.id+'" data-pf="name" value="'+esc(g.name)+'" aria-label="Реквизит" autocomplete="off" enterkeyhint="done">'+
+            '<input class="prop-qty num" data-pz="'+z.id+'" data-pid="'+g.id+'" data-pf="qty" value="'+esc(g.qty||'')+'" placeholder="кол-во" aria-label="Количество" autocomplete="off" enterkeyhint="done">'+
+            '<button class="mini '+g.st+'" data-a="prop" data-z="'+z.id+'" data-id="'+g.id+'">'+lab+'</button><button class="mini buy" data-a="prop-del" data-z="'+z.id+'" data-id="'+g.id+'" aria-label="Удалить реквизит">×</button></div>'; }).join('')+
         addRow('add-prop-'+z.id,'prop','Реквизит, количество',z.id)+'</div>'+
         (z.props.some(function(g){return g.st==='buy';})?'<button class="link-btn" data-a="prop-to-buy" data-id="'+z.id+'">Недостающее — в покупки</button>':'')+'</div>';
     });
+    var orphan=e.tasks.filter(function(t){return t.sec===k;});
+    if(orphan.length) h+='<div class="block" style="margin-top:6px"><div class="block-h"><h3>Задачи без зоны</h3><small class="num">'+orphan.filter(function(t){return t.done;}).length+' из '+orphan.length+'</small></div><div class="list">'+orphan.map(taskRowFull).join('')+'</div></div>';
     h+='<button class="soft-btn" data-a="sheet-zone">+ Зона</button></div>';
   }
   var buys=e.buys.filter(function(b){return b.sec===k;}).sort(function(a,b){return a.done-b.done;});
@@ -1122,8 +1153,8 @@ function vSheet(){
     return sheetWrap('Вдохновение',body,'','Удалить'); }
   if(t==='zone'){ o=id?e.zones.find(function(x){return x.id===id;}):null;
     var zb=field('f-title','Название зоны',o?o.name:'','text','Распределяющая шляпа, фотозона…')+
-      '<div class="field"><label for="f-text">Как устроена</label><textarea id="f-text" placeholder="Что делают гости, сколько длится, что нужно подготовить…">'+esc(o?o.desc:'')+'</textarea></div>'+
-      field('f-owner','Кто отвечает',o?o.owner:'','text','Я, Аня, аниматор…');
+      '<div class="field"><label for="f-text">Описание</label><textarea id="f-text" placeholder="Что делают гости, сколько длится, что нужно подготовить…">'+esc(o?o.desc:'')+'</textarea></div>'+
+      (o?photoField('zone',o.id,o.photo,'Фото')+subsField(o,'Задачи'):'');
     return sheetWrap(o?'Зона':'Новая зона',zb,o?'Сохранить':'Добавить зону',o?'Удалить зону':''); }
   if(t==='task'){ o=e.tasks.find(function(x){return x.id===id;});
     return sheetWrap('Задача',field('f-title','Задача',o.title)+field('f-date','Когда сделать',o.date,'date')+
@@ -1185,7 +1216,7 @@ function saveSheet(more){
       n.buys=src.buys.map(function(x){return {id:uid(),sec:map[x.sec],title:x.title,price:x.price,done:false};});
       n.storeUse=src.storeUse.map(function(x){return {id:uid(),storeId:x.storeId,qty:x.qty,done:false};});
       n.dishes=JSON.parse(JSON.stringify(src.dishes)).map(function(d){ d.id=uid(); d.ing.forEach(function(g){g.id=uid(); g.st=g.st==='have'?'have':'buy';}); return d; });
-      n.zones=(src.zones||[]).map(function(z){ return {id:uid(),sec:map[z.sec],name:z.name,desc:z.desc,owner:z.owner,props:z.props.map(function(g){return {id:uid(),name:g.name,qty:g.qty,st:(g.st==='have'||g.st==='store')?g.st:'buy'};})}; }).filter(function(z){return z.sec;});
+      n.zones=(src.zones||[]).map(function(z){ return {id:uid(),sec:map[z.sec],name:z.name,desc:z.desc,photo:'',subs:(z.subs||[]).map(function(y){return {id:uid(),title:y.title,done:false};}),props:z.props.map(function(g){return {id:uid(),name:g.name,qty:g.qty,st:(g.st==='have'||g.st==='store')?g.st:'buy'};})}; }).filter(function(z){return z.sec;});
       n.concept=src.concept; }
     S.events.push(n); save(); R={name:'event',id:n.id}; UI.sheet=null; render(); window.scrollTo(0,0); return;
   }
@@ -1193,8 +1224,8 @@ function saveSheet(more){
   if(t==='todo'){ o=S.todos.find(function(x){return x.id===id;}); o.title=val('f-title')||o.title; o.date=val('f-date'); o.focus=checked('f-focus'); o.note=val('f-note'); o.list=radio('f-list')||o.list; }
   if(t==='insp'){ o=e.insp.find(function(x){return x.id===id;}); o.text=val('f-text'); o.url=val('f-url'); o.state=radio('f-state')||o.state; }
   if(t==='zone'){ var zn=val('f-title'); if(!zn){ document.getElementById('f-title').focus(); return; }
-    if(id){ o=e.zones.find(function(x){return x.id===id;}); o.name=zn; o.desc=val('f-text'); o.owner=val('f-owner'); }
-    else e.zones.push({id:uid(),sec:R.k,name:zn,desc:val('f-text'),owner:val('f-owner'),props:[]}); }
+    if(id){ o=e.zones.find(function(x){return x.id===id;}); o.name=zn; o.desc=val('f-text'); }
+    else { var nz={id:uid(),sec:R.k,name:zn,desc:val('f-text'),photo:'',subs:[],props:[]}; e.zones.push(nz); save(); UI.sheet={type:'zone',id:nz.id}; render(); toast('Зона добавлена — можно добавить фото и задачи'); return; } }
   if(t==='task'){ o=e.tasks.find(function(x){return x.id===id;}); o.title=val('f-title')||o.title; o.date=val('f-date'); o.note=val('f-note'); o.sec=val('f-sec')||o.sec; }
   if(t==='buy'){ o=e.buys.find(function(x){return x.id===id;}); o.title=val('f-title')||o.title; o.price=num(val('f-price')); o.sec=val('f-sec')||o.sec; }
   if(t==='use'){ o=e.storeUse.find(function(x){return x.id===id;}); o.qty=Math.max(1,num(val('f-qty'))||1); }
@@ -1222,7 +1253,7 @@ function delSheet(btn){
   if(t==='shop'){ S.shop=S.shop.filter(function(x){return x.id!==id;}); save(); UI.sheet=null; render(); return; }
   if(t==='todo'){ S.todos=S.todos.filter(function(x){return x.id!==id;}); save(); UI.sheet=null; render(); return; }
   if(t==='insp'){ var dc=e.insp.find(function(x){return x.id===id;}); if(dc) delPhoto(dc.photo); rm(e.insp); }
-  if(t==='zone') rm(e.zones);
+  if(t==='zone'){ var dz=e.zones.find(function(x){return x.id===id;}); if(dz) delPhoto(dz.photo); rm(e.zones); }
   if(t==='buy'){ var dbx=e.buys.find(function(x){return x.id===id;}); if(dbx) delPhoto(dbx.photo); }
   if(t==='expense'){ var dex=e.expenses.find(function(x){return x.id===id;}); if(dex) delPhoto(dex.photo); }
   if(t==='task') rm(e.tasks); if(t==='buy') rm(e.buys); if(t==='use') rm(e.storeUse); if(t==='expense') rm(e.expenses); if(t==='dish') rm(e.dishes); if(t==='guest') rm(e.guests);
@@ -1288,7 +1319,7 @@ function act(a,el){
       break; }
     case 'photo-rm': { var tg=el.dataset.target, ob=null;
       if(tg==='cover') ob=S.events.find(function(x){return x.id===id;}); if(tg==='insp') ob=e.insp.find(function(x){return x.id===id;});
-      if(tg==='buy') ob=e.buys.find(function(x){return x.id===id;}); if(tg==='expense') ob=e.expenses.find(function(x){return x.id===id;});
+      if(tg==='buy') ob=e.buys.find(function(x){return x.id===id;}); if(tg==='zone') ob=e.zones.find(function(x){return x.id===id;}); if(tg==='expense') ob=e.expenses.find(function(x){return x.id===id;});
       if(ob){ if(tg==='cover'){ delPhoto(ob.cover); ob.cover=''; } else { delPhoto(ob.photo); ob.photo=''; } save(); rerenderKeep(); } break; }
     case 'zoom': UI.zoom=el.dataset.p; rerenderKeep(); break;
     case 'unzoom': UI.zoom=null; rerenderKeep(); break;
@@ -1297,8 +1328,9 @@ function act(a,el){
       var nt={id:uid(),sec:ic0.sec,title:ttl,date:'',done:false}; e.tasks.push(nt); ic0.taskId=nt.id; ic0.state='yes'; save(); UI.sheet=null; render(); toast('Задача «'+ttl+'» добавлена'); break; }
     case 'prop': { var zo=e.zones.find(function(x){return x.id===el.dataset.z;}), pg=zo.props.find(function(x){return x.id===id;});
       pg.st={have:'store',store:'buy',buy:'have',listed:'have'}[pg.st]||'buy'; save(); render(); break; }
+    case 'prop-del': { var zd=e.zones.find(function(x){return x.id===el.dataset.z;}); if(zd){ var gd=zd.props.find(function(x){return x.id===id;}); propDel(e,zd,gd); save(); render(); } break; }
     case 'prop-to-buy': { var zb2=e.zones.find(function(x){return x.id===id;}), cnt2=0;
-      zb2.props.forEach(function(g){ if(g.st==='buy'){ e.buys.push({id:uid(),sec:zb2.sec,title:g.name+(g.qty?' '+g.qty:''),price:0,done:false}); g.st='listed'; cnt2++; } });
+      zb2.props.forEach(function(g){ if(g.st==='buy'){ var nb={id:uid(),sec:zb2.sec,title:g.name+(g.qty?' '+g.qty:''),price:0,done:false}; e.buys.push(nb); g.buyId=nb.id; g.st='listed'; cnt2++; } });
       save(); toast(cnt2+' '+plural(cnt2,['предмет','предмета','предметов'])+' добавлено в «Купить»'); break; }
     case 'add-go': { var ai=document.getElementById(el.dataset.for); if(ai&&ai.value.trim()) addItem(ai); else if(ai) ai.focus(); break; }
     case 'sign-in': signIn(false); break;
@@ -1355,7 +1387,7 @@ document.addEventListener('click',function(ev0){
 document.addEventListener('keydown',function(k){
   var t=k.target;
   if(k.key==='Enter'&&t.dataset&&t.dataset.add){ k.preventDefault(); addItem(t); }
-  if(k.key==='Enter'&&t.dataset&&t.dataset.subId){ k.preventDefault(); t.blur(); }
+  if(k.key==='Enter'&&t.dataset&&(t.dataset.subId||t.dataset.pid)){ k.preventDefault(); t.blur(); }
   if(k.key==='Enter'&&t.id==='qa'){ k.preventDefault(); quickAdd(); }
   if(k.key==='Escape'&&UI.sheet){ UI.sheet=null; render(); }
 });
@@ -1367,11 +1399,19 @@ document.getElementById('file-pick').addEventListener('change',function(){
     var e=S.events.find(function(x){return x.id===P.ev;}); if(!e) return;
     if(P.target==='cover'){ var ce2=S.events.find(function(x){return x.id===P.id;})||e; if(ce2.cover) delPhoto(ce2.cover); ce2.cover=path; }
     if(P.target==='insp-new') e.insp.unshift({id:uid(),sec:P.sec,text:'',url:'',photo:path,state:'think',at:Date.now()});
-    var arr={insp:e.insp,buy:e.buys,expense:e.expenses}[P.target];
+    var arr={insp:e.insp,buy:e.buys,expense:e.expenses,zone:e.zones}[P.target];
     if(arr){ var ob=arr.find(function(x){return x.id===P.id;}); if(ob){ if(ob.photo) delPhoto(ob.photo); ob.photo=path; } }
     save(); rerenderKeep(); toast('Фото добавлено',true);
   },function(err){ toast('Не удалось загрузить фото: '+((err&&err.message)||'ошибка'),true); });
 });
+document.addEventListener('change',function(c){
+  var t=c.target; if(!t.dataset||!t.dataset.pid) return; var e=ev(); if(!e) return;
+  var z=e.zones.find(function(x){return x.id===t.dataset.pz;}); if(!z) return; var g=z.props.find(function(x){return x.id===t.dataset.pid;}); if(!g) return;
+  var v=t.value.trim();
+  if(t.dataset.pf==='name'){ if(!v){ propDel(e,z,g); save(); render(); return; } if(v===g.name) return; var oldT=g.name+(g.qty?' '+g.qty:''); g.name=v; if(g.st==='listed') syncPropBuy(e,z,g,oldT); save(); return; }
+  if(v===(g.qty||'')) return; var oldT2=g.name+(g.qty?' '+g.qty:''); g.qty=v; if(g.st==='listed') syncPropBuy(e,z,g,oldT2); save();
+});
+function syncPropBuy(e,z,g,oldT){ var b=e.buys.find(function(x){ return !x.done&&(x.id===g.buyId||(!g.buyId&&x.sec===z.sec&&x.title===oldT)); }); if(b) b.title=g.name+(g.qty?' '+g.qty:''); }
 document.addEventListener('change',function(c){
   var t=c.target; if(!t.dataset||!t.dataset.subId) return;
   var tp=subOwner(t.dataset.subT); if(!tp) return;
