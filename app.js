@@ -388,7 +388,7 @@ function vTodoQuick(){
   return '<div class="qa todo"><div class="qa-in"><div class="qa-field"><label for="td-add" class="sr">'+esc(ph)+'</label><input id="td-add" data-add="'+(seg==='shop'?'shop':'todo')+'" placeholder="'+esc(ph)+'" autocomplete="off" enterkeyhint="done"><button class="qa-go" data-a="add-go" data-for="td-add" aria-label="Добавить">'+ic('plus')+'</button></div></div></div>';
 }
 /* ---------- lists: films / series / books ---------- */
-var LKINDS=[['films','film','Фильмы','Фильм','фильм'],['series','tv','Сериалы','Сериал','сериал'],['books','book','Книги','Книга','книгу']];
+var LKINDS=[['books','book','Книги','Книга','книгу'],['films','film','Фильмы','Фильм','фильм'],['series','tv','Сериалы','Сериал','сериал']];
 /* status per list: [want label, done label, done verb, date label, empty-done text] */
 var LST={films:['Хочу посмотреть','Посмотрено','посмотрено','Когда посмотрела','Просмотренных фильмов пока нет.'],
   series:['Хочу посмотреть','Посмотрено','посмотрено','Когда посмотрела','Просмотренных сериалов пока нет.'],
@@ -403,7 +403,7 @@ function lFind(id){ if(!id) return null; for(var i=0;i<LKINDS.length;i++){ var k
 function splitG(s){ return String(s||'').split(',').map(function(x){return x.trim();}).filter(Boolean); }
 function lGenres(list){ var seen={}, out=[]; list.forEach(function(it){ splitG(it.genre).forEach(function(g){ var k=g.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(g); } }); }); return out.sort(function(a,b){return a.localeCompare(b,'ru');}); }
 function vLists(){
-  var lk=UI.lk||'films', K=lkind(lk), all=S.lists[lk]||[];
+  var lk=UI.lk||'books', K=lkind(lk), all=S.lists[lk]||[];
   var h='<div class="lists-w"><header class="top"><div><div class="eyebrow">Посмотреть и прочитать</div><h1>Списки</h1></div>'+
     '<button class="plus" data-a="sheet-litem" aria-label="Добавить: '+K[4]+'">'+ic('plus')+'</button></header>';
   h+='<div class="l-seg" role="tablist">'+LKINDS.map(function(x){ var n=(S.lists[x[0]]||[]).length, on=lk===x[0];
@@ -787,7 +787,7 @@ function vSheet(){
     return sheetWrap('Идея',body,'Сохранить','Удалить идею'); }
   if(t==='tblock'){ o=id?S.tblocks.find(function(x){return x.id===id;}):null;
     return sheetWrap(o?'Блок':'Новый блок',field('f-title','Название',o?o.name:'','text','Продвижение, хобби, ремонт…')+(o?'<p class="muted" style="margin:0;font-size:13px;font-weight:600">Если удалить блок, его дела останутся — просто без блока.</p>':''),o?'Сохранить':'Создать',o?'Удалить блок':''); }
-  if(t==='litem'){ var lf=lFind(id), lk2=lf?lf.k:(UI.lk||'films'), K=lkind(lk2); o=lf?lf.it:null;
+  if(t==='litem'){ var lf=lFind(id), lk2=lf?lf.k:(UI.lk||'books'), K=lkind(lk2); o=lf?lf.it:null;
     if(UI.sheet.photo===undefined){ UI.sheet.photo=o?o.photo||'':''; UI.sheet.orig=UI.sheet.photo; }
     var cur=splitG(o?o.genre:'').map(function(g){return g.toLowerCase();});
     var presets=LGENRES[lk2].slice(); lGenres(S.lists[lk2]).forEach(function(g){ if(!presets.some(function(p){return p.toLowerCase()===g.toLowerCase();})) presets.push(g); });
@@ -851,7 +851,7 @@ function saveSheet(more){
     if(lf){ o=lf.it; if(o.photo&&o.photo!==ph) delPhoto(o.photo); o.title=lt; o.genre=lgen; o.text=val('f-text'); o.photo=ph;
       if(radio('f-bst')){ if((o.st||'want')!==bsv&&curBst(lf.k)!==bsv) bmsg='«'+lt+'» — '+(bsv==='done'?'в «'+LST[lf.k][1]+'»':'снова в «'+LST[lf.k][0]+'»'); o.st=bsv; o.doneAt=bda; }
       var nk=radio('f-lk')||lf.k; if(nk!==lf.k){ S.lists[lf.k]=S.lists[lf.k].filter(function(x){return x.id!==o.id;}); S.lists[nk].unshift(o); UI.lk=nk; } }
-    else { var nlk=UI.lk||'films', ni={id:uid(),title:lt,genre:lgen,text:val('f-text'),photo:ph,at:Date.now()}; ni.st=bsv; ni.doneAt=bda; if(curBst(nlk)!==bsv) bmsg='«'+lt+'» — в «'+LST[nlk][bsv==='done'?1:0]+'»'; S.lists[nlk].unshift(ni); }
+    else { var nlk=UI.lk||'books', ni={id:uid(),title:lt,genre:lgen,text:val('f-text'),photo:ph,at:Date.now()}; ni.st=bsv; ni.doneAt=bda; if(curBst(nlk)!==bsv) bmsg='«'+lt+'» — в «'+LST[nlk][bsv==='done'?1:0]+'»'; S.lists[nlk].unshift(ni); }
     UI.sheet.orig=ph; if(bmsg){ save(); UI.sheet=null; toast(bmsg); return; } }
   if(t==='restore'){ try{ var d=JSON.parse(val('f-json')); if(!d||!d.events) throw 0; S=migrate(d); }catch(err){ toast('Не получилось прочитать копию. Вставьте текст целиком.'); return; } }
   save(); UI.sheet=null; render();
@@ -911,7 +911,7 @@ function act(a,el){
     case 'ifl': UI.ifl=el.dataset.v; render(); break;
     case 'tseg': UI.tseg=el.dataset.v; render(); break;
     case 'lk': UI.lk=el.dataset.v; UI.lgenre=''; render(); break;
-    case 'lbst': UI.bsts=UI.bsts||{}; UI.bsts[UI.lk||'films']=el.dataset.v; UI.lgenre=''; render(); break;
+    case 'lbst': UI.bsts=UI.bsts||{}; UI.bsts[UI.lk||'books']=el.dataset.v; UI.lgenre=''; render(); break;
     case 'lgenre': UI.lgenre=el.dataset.v; render(); break;
     case 'lgpick': { var gi0=document.getElementById('f-genre'), gv=el.dataset.v, gl=splitG(gi0.value), gx=gl.findIndex(function(x){return x.toLowerCase()===gv.toLowerCase();});
       if(gx>=0) gl.splice(gx,1); else gl.push(gv); gi0.value=gl.join(', '); el.classList.toggle('on',gx<0); el.setAttribute('aria-pressed',String(gx<0)); break; }
