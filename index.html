@@ -505,6 +505,38 @@ button.zone-d{border:0;background:none;padding:0;text-align:left;display:-webkit
   .sheet{animation:up .22s ease-out}
   @keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
 }
+/* sheets never pan sideways (iPhone date fields can be wider than asked) */
+.sheet{overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y}
+.sheet .field{min-width:0}
+.sheet input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;display:block}
+.sheet.still,.backdrop.still{animation:none!important}
+/* task card */
+.td-star{width:40px;height:40px;flex:none;border-radius:14px;border:0;background:var(--surface);display:flex;align-items:center;justify-content:center;color:#9AA1AF}
+.td-star .i{width:22px;height:22px}
+.td-star.on{background:#FFF4CC;color:#C99A12}
+.td-star.on .i{fill:#F2C744}
+.field textarea.td-title{height:auto;min-height:54px;padding:15px 16px;font-size:18px;font-weight:700;line-height:1.3;field-sizing:content}
+.td-dates{display:flex;gap:6px;flex-wrap:wrap}
+.dchip{position:relative;display:inline-flex;align-items:center;gap:4px;height:38px;padding:0 14px;border-radius:19px;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:700;font-size:14px;color:var(--ink);overflow:hidden}
+.dchip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dchip.clr{padding:0 12px;font-size:18px}
+.dpick input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;padding:0;margin:0;border:0}
+.td-more{display:flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-radius:14px;border:0;background:var(--surface);font:inherit;font-weight:700;font-size:14px;color:var(--ink);text-align:left}
+.td-auto{margin:-4px 0 0;font-size:12px;font-weight:600;text-align:center}
+/* «Разобрать» */
+.sort-cta{display:flex;align-items:center;gap:8px;width:100%;margin:12px 0 2px;padding:12px 14px;border-radius:16px;border:1.5px dashed #C9CCE8;background:#F7F7FE;font:inherit;font-weight:800;font-size:14px;color:var(--ink);text-align:left}
+.sort-cta span{flex:1}
+.sort-cta small{font-weight:700;opacity:.6}
+.sort-count{font-size:13px;font-weight:700;margin-top:-6px}
+.sort-card{display:flex;flex-direction:column;gap:4px;padding:18px;border-radius:18px;background:var(--surface)}
+.sort-card b{font-size:19px;line-height:1.3}
+.sort-blk{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sort-blk button{min-height:52px;padding:8px 12px;border-radius:16px;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:800;font-size:14px;color:var(--ink)}
+.sort-blk button:active{background:var(--ink);color:#fff}
+.sort-act{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sort-act .soft-btn{display:flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-weight:800;font-size:14px;color:var(--ink)}
+.sort-done{text-align:center;padding:16px 0}
+.sort-done b{font-size:20px}
 </style>
 </head>
 <body>

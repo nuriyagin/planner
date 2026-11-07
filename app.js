@@ -135,6 +135,8 @@ function restoreSheet(o){ if(!o) return; Object.keys(o).forEach(function(k){
   else if(k.indexOf('r:')===0){ var r=document.querySelector('input[name="'+k.slice(2)+'"][value="'+String(o[k]).replace(/"/g,'')+'"]'); if(r) r.checked=true; }
   else { var el=document.getElementById(k); if(el) el.value=o[k]; } }); }
 function rerenderKeep(){ var sn=snapSheet(); render(); restoreSheet(sn); syncGpicks(); }
+/* redraw an open sheet in place: no slide-in animation, same scroll */
+function sheetRefresh(){ var sh=document.querySelector('.sheet'), y=sh?sh.scrollTop:0; rerenderKeep(); var n=document.querySelector('.sheet'); if(n){ n.classList.add('still'); var bd=n.closest('.backdrop'); if(bd) bd.classList.add('still'); n.scrollTop=y; } }
 function syncGpicks(){ var gi=document.getElementById('f-genre'); if(!gi) return; var cur=String(gi.value||'').split(',').map(function(x){return x.trim().toLowerCase();});
   document.querySelectorAll('.gpicks button').forEach(function(b){ var on=cur.indexOf(String(b.dataset.v).toLowerCase())>=0; b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on)); }); }
 function photoField(target,id,path,label){
@@ -360,6 +362,17 @@ function tdRow(t,tag){
 function blkOf(t){ return t&&t.block&&S.tblocks.some(function(b){return b.id===t.block;})?t.block:''; }
 function blkName(id){ var b=S.tblocks.find(function(x){return x.id===id;}); return b?b.name:''; }
 function curBlk(){ var b=UI.tblk||''; return b&&S.tblocks.some(function(x){return x.id===b;})?b:''; }
+/* task card saves itself: read what is on screen into the task */
+function todoSync(){ var s=UI.sheet; if(!s||s.type!=='todo') return null; var o=S.todos.find(function(x){return x.id===s.id;}); if(!o) return null;
+  var ti=document.getElementById('f-title'); if(ti&&ti.value.trim()) o.title=ti.value.replace(/\s*\n\s*/g,' ').trim();
+  var d=document.getElementById('f-date'); if(d) o.date=d.value;
+  var n=document.getElementById('f-note'); if(n) o.note=n.value;
+  var l=radio('f-list'); if(l) o.list=l;
+  if(document.querySelector('input[name="f-blk"]')) o.block=radio('f-blk')||'';
+  save(); return o; }
+/* «Разобрать»: personal tasks without a block, one at a time */
+function sortQueue(){ var sk=UI.sortSkip||{}; return S.todos.filter(function(t){ return t.list==='personal'&&!t.done&&!blkOf(t)&&!sk[t.id]; }).sort(function(a,b){return (a.at||0)-(b.at||0);}); }
+function unsortedCount(){ return S.todos.filter(function(t){ return t.list==='personal'&&!t.done&&!blkOf(t); }).length; }
 function taskRowFull(t){ var sb=t.subs||[], op=!!(UI.tdOpen||{})[t.id];
   var h=row(t.done,'task',t.id,t.title,t.date?fmtShort(t.date):'',(t.note?'<span class="t-note" aria-label="Есть описание">'+ic('edit')+'</span>':'')+(sb.length?'<span class="t-subs num">'+sb.filter(function(x){return x.done;}).length+'/'+sb.length+'</span>':''));
   if(sb.length) h=h.replace(/<\/div>$/,'<button class="chev" data-a="td-toggle" data-id="'+t.id+'" aria-expanded="'+op+'" aria-label="Подзадачи">'+ic(op?'up':'down')+'</button></div>');
@@ -388,6 +401,7 @@ function vTodoList(list){
   if(cb) h+='<div class="lh"><b>'+esc(blkName(cb))+'</b><span style="display:flex;gap:10px;align-items:baseline"><small>'+rest.length+'</small><button class="lh-ed" data-a="sheet-tblock" data-id="'+cb+'">Изменить</button></span></div>'+(rest.length?'<div class="lav-list" style="margin-top:6px">'+rest.map(function(t){return tdRow(t);}).join('')+'</div>':'');
   else if(pers){ var groups=S.tblocks.map(function(b){ return [b.name,rest.filter(function(t){return blkOf(t)===b.id;})]; }).filter(function(g){return g[1].length;});
     var nob=rest.filter(function(t){return !blkOf(t);}); if(nob.length) groups.push([groups.length?'Без блока':'Все дела',nob]);
+    var uns=unsortedCount(); if(uns&&S.tblocks.length) h+='<button class="sort-cta" data-a="td-sort">'+ic('tasks').replace('class="i"','class="i" style="width:18px;height:18px"')+'<span>Разобрать по блокам</span><small>'+uns+' без блока</small></button>';
     h+=groups.map(function(g){ return '<div class="lh"><b>'+esc(g[0])+'</b><small>'+g[1].length+'</small></div><div class="lav-list" style="margin-top:6px">'+g[1].map(function(t){return tdRow(t);}).join('')+'</div>'; }).join(''); }
   else if(rest.length) h+='<div class="lh"><b>Все дела</b><small>'+rest.length+'</small></div><div class="lav-list" style="margin-top:6px">'+rest.map(function(t){return tdRow(t);}).join('')+'</div>';
   if(done.length){
@@ -451,7 +465,7 @@ function bookStatus(o,lk){ var LS1=LST[lk];
   return '<div class="field"><span class="lbl">Статус</span><div class="radios">'+[['want',LS1[0]],['done',LS1[1]]].map(function(x){return '<label><input type="radio" name="f-bst" value="'+x[0]+'"'+(bs===x[0]?' checked':'')+'><span>'+x[1]+'</span></label>';}).join('')+'</div></div>'+
     (bs==='done'?field('f-done',LS1[3],(o&&o.doneAt)||iso(today0()),'date'):'');
 }
-function closeSheet(){ var s=UI.sheet; if(s&&s.type==='litem'&&s.photo&&s.photo!==s.orig) delPhoto(s.photo); UI.sheet=null; }
+function closeSheet(){ var s=UI.sheet; if(s&&s.type==='todo') todoSync(); if(s&&s.type==='sort'){ UI.sortSkip=null; UI.sortTotal=0; }if(s&&s.type==='litem'&&s.photo&&s.photo!==s.orig) delPhoto(s.photo); UI.sheet=null; }
 
 function go(r){ R=r; UI.sheet=null; render(); window.scrollTo(0,0); }
 var toastT;
@@ -750,12 +764,25 @@ function vSheet(){
     return sheetWrap('Покупка',field('f-title','Что купить',o.name)+field('f-qty','Сколько',o.qty,'text','2 шт, 1 кг…')+
       '<div class="field"><span class="lbl">Где</span><div class="radios">'+STORES.map(function(x){return '<label><input type="radio" name="f-store" value="'+x[0]+'"'+(o.store===x[0]?' checked':'')+'><span>'+x[1]+'</span></label>';}).join('')+'</div></div>','Сохранить','Удалить'); }
   if(t==='todo'){ o=S.todos.find(function(x){return x.id===id;});
-    var sb2=subsField(o);
-    return sheetWrap(o.list==='work'?'Рабочая задача':'Дело',field('f-title','Что сделать',o.title)+field('f-date','Срок (необязательно)',o.date,'date')+
-      '<div class="field"><span class="lbl">Фокус</span><div class="radios toggles2" style="grid-template-columns:1fr"><label><input type="checkbox" id="f-focus"'+(o.focus?' checked':'')+'><span data-on="★ В фокусе" data-off="☆ Не в фокусе">'+(o.focus?'★ В фокусе':'☆ Не в фокусе')+'</span></label></div></div>'+sb2+
-      '<div class="field"><label for="f-note">Заметка</label><textarea id="f-note" placeholder="Подробности, телефон, адрес…">'+esc(o.note||'')+'</textarea></div>'+
-      (o.list!=='work'&&S.tblocks.length?'<div class="field"><span class="lbl">Блок</span><div class="radios">'+[['','Без блока']].concat(S.tblocks.map(function(b){return [b.id,b.name];})).map(function(x){return '<label><input type="radio" name="f-blk" value="'+x[0]+'"'+(blkOf(o)===x[0]?' checked':'')+'><span>'+esc(x[1])+'</span></label>';}).join('')+'</div></div>':'')+
-      '<div class="field"><span class="lbl">Список</span><div class="radios"><label><input type="radio" name="f-list" value="personal"'+(o.list!=='work'?' checked':'')+'><span>Личные</span></label><label><input type="radio" name="f-list" value="work"'+(o.list==='work'?' checked':'')+'><span>Работа</span></label></div></div>','Сохранить','Удалить'); }
+    var tdy=isoPlus(0), tmr=isoPlus(1), subsN=(o.subs||[]).length, more=UI.tdMore==null?(subsN>0||!!o.note):UI.tdMore;
+    var dchip=function(v,lbl,on){ return '<button type="button" class="dchip'+(on?' on':'')+'" data-a="td-date" data-v="'+v+'" aria-pressed="'+on+'">'+lbl+'</button>'; };
+    var tb='<div class="field"><label for="f-title" class="sr">Что сделать</label><textarea id="f-title" class="td-title" rows="1" placeholder="Что сделать" enterkeyhint="done">'+esc(o.title)+'</textarea></div>'+
+      (o.list!=='work'&&S.tblocks.length?'<div class="field"><span class="lbl">Блок</span><div class="radios td-blk">'+[['','Без блока']].concat(S.tblocks.map(function(b){return [b.id,b.name];})).map(function(x){return '<label><input type="radio" name="f-blk" value="'+x[0]+'"'+(blkOf(o)===x[0]?' checked':'')+'><span>'+esc(x[1])+'</span></label>';}).join('')+'</div></div>':'')+
+      '<div class="field"><span class="lbl">Срок</span><div class="td-dates">'+dchip('today','Сегодня',o.date===tdy)+dchip('tomorrow','Завтра',o.date===tmr)+
+        '<label class="dchip dpick'+(o.date&&o.date!==tdy&&o.date!==tmr?' on':'')+'">'+(o.date&&o.date!==tdy&&o.date!==tmr?fmtShort(o.date):'📅 Дата')+'<input type="date" id="f-date" value="'+esc(o.date||'')+'" aria-label="Выбрать дату"></label>'+
+        (o.date?'<button type="button" class="dchip clr" data-a="td-date" data-v="" aria-label="Убрать срок">×</button>':'')+'</div></div>'+
+      '<button type="button" class="td-more" data-a="td-more" aria-expanded="'+more+'">'+ic(more?'up':'down').replace('class="i"','class="i" style="width:16px;height:16px"')+' Подзадачи и заметка'+(subsN?' · '+subsN:'')+(o.note?' · есть заметка':'')+'</button>'+
+      (more?subsField(o)+'<div class="field"><label for="f-note">Заметка</label><textarea id="f-note" placeholder="Подробности, телефон, адрес…">'+esc(o.note||'')+'</textarea></div>':'')+
+      '<div class="field"><span class="lbl">Список</span><div class="radios"><label><input type="radio" name="f-list" value="personal"'+(o.list!=='work'?' checked':'')+'><span>Личные</span></label><label><input type="radio" name="f-list" value="work"'+(o.list==='work'?' checked':'')+'><span>Работа</span></label></div></div>'+
+      '<p class="muted td-auto">Изменения сохраняются сами</p>';
+    var tw=sheetWrap(o.list==='work'?'Рабочая задача':'Дело',tb,'','Удалить');
+    return tw.replace('<div class="sheet-h"><h2>','<div class="sheet-h"><button type="button" class="td-star'+(o.focus?' on':'')+'" data-a="td-star" aria-pressed="'+!!o.focus+'" aria-label="'+(o.focus?'Убрать из фокуса':'В фокус')+'">'+ic('star')+'</button><h2 style="flex:1">'); }
+  if(t==='sort'){ var sq=sortQueue(), cur=sq[0];
+    if(!cur) return sheetWrap('Разобрать','<div class="sort-done"><b>Всё разобрано</b><p class="muted">Дел без блока больше нет.</p></div><button class="primary" data-a="close">Готово</button>','','');
+    var tot=UI.sortTotal||sq.length, n=Math.min(tot,tot-sq.length+1);
+    return sheetWrap('Разобрать','<div class="sort-count muted">'+n+' из '+tot+'</div><div class="sort-card"><b>'+esc(cur.title)+'</b>'+(cur.date?'<span class="muted">'+fmtShort(cur.date)+'</span>':'')+'</div>'+
+      '<span class="lbl">В какой блок?</span><div class="sort-blk">'+S.tblocks.map(function(b){ return '<button type="button" data-a="sort-pick" data-v="'+b.id+'">'+esc(b.name)+'</button>'; }).join('')+'</div>'+
+      '<div class="sort-act"><button type="button" class="soft-btn" data-a="sort-skip">Пропустить</button><button type="button" class="soft-btn" data-a="sort-tick">'+ic('check').replace('class="i"','class="i" style="width:16px;height:16px"')+' Уже сделано</button></div>','',''); }
   if(t==='insp'){ o=e.insp.find(function(x){return x.id===id;});
     var body=photoField('insp',o.id,o.photo,'Фото')+
       '<div class="field"><label for="f-text">Мысль</label><textarea id="f-text" style="height:100px" placeholder="Что придумалось, что понравилось…">'+esc(o.text||'')+'</textarea></div>'+
@@ -848,7 +875,7 @@ function saveSheet(more){
     S.events.push(n); save(); R={name:'event',id:n.id}; UI.sheet=null; render(); window.scrollTo(0,0); return;
   }
   if(t==='shop'){ o=S.shop.find(function(x){return x.id===id;}); o.name=val('f-title')||o.name; o.qty=val('f-qty'); o.store=radio('f-store')||o.store; }
-  if(t==='todo'){ o=S.todos.find(function(x){return x.id===id;}); o.title=val('f-title')||o.title; o.date=val('f-date'); o.focus=checked('f-focus'); o.note=val('f-note'); o.list=radio('f-list')||o.list; if(document.querySelector('input[name="f-blk"]')) o.block=radio('f-blk')||''; }
+  if(t==='todo'){ closeSheet(); render(); return; }
   if(t==='tblock'){ var bn=val('f-title'); if(!bn){ document.getElementById('f-title').focus(); return; }
     if(id){ var bo=S.tblocks.find(function(x){return x.id===id;}); if(bo) bo.name=bn; } else { var nb={id:uid(),name:bn}; S.tblocks.push(nb); UI.tblk=nb.id; } }
   if(t==='insp'){ o=e.insp.find(function(x){return x.id===id;}); o.text=val('f-text'); o.url=val('f-url'); o.state=radio('f-state')||o.state; }
@@ -949,7 +976,14 @@ function act(a,el){
     case 'td-tick': { var tk=S.todos.find(function(x){return x.id===id;}); tk.done=!tk.done; tk.doneAt=tk.done?Date.now():0; if(tk.done) tk.focus=false; save(); if(UI.sheet) rerenderKeep(); else render(); break; }
     case 'td-focus': { var tf=S.todos.find(function(x){return x.id===id;}); tf.focus=!tf.focus; save(); render(); break; }
     case 'td-toggle': UI.tdOpen=UI.tdOpen||{}; UI.tdOpen[id]=!UI.tdOpen[id]; render(); break;
-    case 'td-open': UI.sheet={type:'todo',id:id}; render(); break;
+    case 'td-open': UI.sheet={type:'todo',id:id}; UI.tdMore=null; render(); break;
+    case 'td-star': { var so=todoSync(); if(so){ so.focus=!so.focus; save(); sheetRefresh(); } break; }
+    case 'td-date': { var sd=todoSync(); if(sd){ var dv=el.dataset.v; sd.date=dv==='today'?isoPlus(0):dv==='tomorrow'?isoPlus(1):''; save(); var fdi=document.getElementById('f-date'); if(fdi) fdi.value=sd.date; sheetRefresh(); } break; }
+    case 'td-more': todoSync(); UI.tdMore=!(el.getAttribute('aria-expanded')==='true'); sheetRefresh(); break;
+    case 'td-sort': UI.sortSkip={}; UI.sortTotal=unsortedCount(); UI.sheet={type:'sort'}; render(); break;
+    case 'sort-pick': { var sp=sortQueue()[0]; if(sp){ sp.block=el.dataset.v; save(); if(sortQueue().length) toast('«'+sp.title+'» → '+blkName(el.dataset.v)); } sheetRefresh(); break; }
+    case 'sort-skip': { var ss=sortQueue()[0]; if(ss){ UI.sortSkip=UI.sortSkip||{}; UI.sortSkip[ss.id]=true; } sheetRefresh(); break; }
+    case 'sort-tick': { var st=sortQueue()[0]; if(st){ st.done=true; st.doneAt=Date.now(); st.focus=false; save(); toast('«'+st.title+'» — готово'); } sheetRefresh(); break; }
     case 'sub-tick': { var tp=subOwner(el.dataset.t), sx=tp.subs.find(function(x){return x.id===id;}); sx.done=!sx.done; save(); if(UI.sheet) rerenderKeep(); else render(); break; }
     case 'sub-del': { var tp2=subOwner(el.dataset.t); tp2.subs=tp2.subs.filter(function(x){return x.id!==id;}); save(); rerenderKeep(); break; }
     case 'show-tdone': UI.showTdone=!UI.showTdone; render(); break;
@@ -1031,11 +1065,18 @@ document.addEventListener('click',function(ev0){
   if(el.dataset.a==='close-bg'){ if(ev0.target===el){ closeSheet(); render(); } return; }
   act(el.dataset.a,el);
 });
+/* task card: save as you go */
+var tdTyping=null;
+document.addEventListener('change',function(c){ if(!UI.sheet||UI.sheet.type!=='todo'||!c.target.closest||!c.target.closest('.sheet')) return; if(c.target.dataset&&c.target.dataset.subId) return;
+  todoSync(); if(c.target.id==='f-date') sheetRefresh(); });
+document.addEventListener('input',function(i){ if(!UI.sheet||UI.sheet.type!=='todo') return; var t=i.target; if(t.id!=='f-title'&&t.id!=='f-note') return;
+  clearTimeout(tdTyping); tdTyping=setTimeout(todoSync,600); });
 document.addEventListener('keydown',function(k){
   var t=k.target;
   if(k.key==='Enter'&&t.dataset&&t.dataset.add){ k.preventDefault(); addItem(t); }
   if(k.key==='Enter'&&t.dataset&&(t.dataset.subId||t.dataset.pid)){ k.preventDefault(); t.blur(); }
   if(k.key==='Enter'&&t.id==='qa'){ k.preventDefault(); quickAdd(); }
+  if(k.key==='Enter'&&t.id==='f-title'&&UI.sheet&&UI.sheet.type==='todo'){ k.preventDefault(); t.blur(); }
   if(k.key==='Escape'&&UI.zoom){ UI.zoom=null; rerenderKeep(); return; }
   if(k.key==='Escape'&&UI.sheet){ closeSheet(); render(); }
 });
