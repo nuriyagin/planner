@@ -1,0 +1,10 @@
+{
+ "name": "Расходы",
+ "short_name": "Расходы",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#F5F1E6",
+ "theme_color": "#F5F1E6",
+ "lang": "ru"
+}
