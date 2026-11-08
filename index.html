@@ -537,12 +537,15 @@ button.zone-d{border:0;background:none;padding:0;text-align:left;display:-webkit
 .sort-act .soft-btn{display:flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-weight:800;font-size:14px;color:var(--ink)}
 .sort-done{text-align:center;padding:16px 0}
 .sort-done b{font-size:20px}
+.bulk-ph{display:flex;justify-content:center;align-items:center;background:var(--surface);border-radius:18px;padding:8px;height:min(26vh,220px)}
+.bulk-ph img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <div id="layer"></div>
 <input type="file" id="file-pick" accept="image/*" hidden>
+<input type="file" id="file-multi" accept="image/*" multiple hidden>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>

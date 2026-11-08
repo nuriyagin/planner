@@ -439,6 +439,7 @@ function vLists(){
   { var nW=all.filter(function(it){return (it.st||'want')==='want';}).length, nD=all.length-nW;
     h+='<div class="l-sub" role="tablist">'+[['want',LS0[0],nW],['done',LS0[1],nD]].map(function(x){ var on=bst===x[0];
       return '<button role="tab" aria-selected="'+on+'" class="'+(on?'on':'')+'" data-a="lbst" data-v="'+x[0]+'">'+x[1]+(x[2]?'<small>'+x[2]+'</small>':'')+'</button>'; }).join('')+'</div>';
+    h+='<button class="sort-cta" data-a="bulk-pick">'+ic('image')+'<span>Добавить пачкой по фото</span><small>обложки сразу</small></button>';
     all=all.filter(function(it){return (it.st||'want')===bst;});
     if(bst==='done') all=all.slice().sort(function(a,b){ var A=a.doneAt||'', B=b.doneAt||''; return A<B?1:A>B?-1:0; }); }
   var gs=lGenres(all), gf=UI.lgenre&&gs.some(function(g){return g.toLowerCase()===UI.lgenre.toLowerCase();})?UI.lgenre:'';
@@ -465,7 +466,7 @@ function bookStatus(o,lk){ var LS1=LST[lk];
   return '<div class="field"><span class="lbl">Статус</span><div class="radios">'+[['want',LS1[0]],['done',LS1[1]]].map(function(x){return '<label><input type="radio" name="f-bst" value="'+x[0]+'"'+(bs===x[0]?' checked':'')+'><span>'+x[1]+'</span></label>';}).join('')+'</div></div>'+
     (bs==='done'?field('f-done',LS1[3],(o&&o.doneAt)||iso(today0()),'date'):'');
 }
-function closeSheet(){ var s=UI.sheet; if(s&&s.type==='todo') todoSync(); if(s&&s.type==='sort'){ UI.sortSkip=null; UI.sortTotal=0; }if(s&&s.type==='litem'&&s.photo&&s.photo!==s.orig) delPhoto(s.photo); UI.sheet=null; }
+function closeSheet(){ var s=UI.sheet; if(s&&s.type==='todo') todoSync(); if(s&&s.type==='sort'){ UI.sortSkip=null; UI.sortTotal=0; }if(s&&s.type==='lbulk') bulkEnd();if(s&&s.type==='litem'&&s.photo&&s.photo!==s.orig) delPhoto(s.photo); UI.sheet=null; }
 
 function go(r){ R=r; UI.sheet=null; render(); window.scrollTo(0,0); }
 var toastT;
@@ -777,6 +778,17 @@ function vSheet(){
       '<p class="muted td-auto">Изменения сохраняются сами</p>';
     var tw=sheetWrap(o.list==='work'?'Рабочая задача':'Дело',tb,'','Удалить');
     return tw.replace('<div class="sheet-h"><h2>','<div class="sheet-h"><button type="button" class="td-star'+(o.focus?' on':'')+'" data-a="td-star" aria-pressed="'+!!o.focus+'" aria-label="'+(o.focus?'Убрать из фокуса':'В фокус')+'">'+ic('star')+'</button><h2 style="flex:1">'); }
+  if(t==='lbulk'){ var B=BULK, BK=lkind(B?B.lk:'books');
+    if(!B||B.i>=B.files.length) return sheetWrap('Разобрать фото','<div class="sort-done"><b>Готово</b><p class="muted">'+(B&&B.made?'Добавлено: '+B.made+'. Обложки догрузятся сами.':'Ничего не добавлено.')+'</p></div><button class="primary" data-a="close">Готово</button>','','');
+    var bpre=LGENRES[B.lk].slice(); lGenres(S.lists[B.lk]).forEach(function(g){ if(!bpre.some(function(x){return x.toLowerCase()===g.toLowerCase();})) bpre.push(g); });
+    var last=B.i===B.files.length-1;
+    return sheetWrap('Разобрать фото','<div class="sort-count muted">'+(B.i+1)+' из '+B.files.length+'</div>'+
+      '<div class="bulk-ph"><img src="'+B.urls[B.i]+'" alt=""></div>'+
+      field('f-title','Название','','text','Как называется '+BK[3].toLowerCase()+'?')+
+      '<div class="field"><label for="f-genre">Жанр</label><input id="f-genre" type="text" value="" placeholder="Выберите ниже или впишите свой" autocomplete="off">'+
+      '<div class="gpicks" role="group" aria-label="Быстрый выбор жанра">'+bpre.map(function(g){ return '<button data-a="lgpick" data-v="'+esc(g)+'" aria-pressed="false">'+esc(g)+'</button>'; }).join('')+'</div></div>'+
+      '<button class="primary" data-a="bulk-next">'+(last?'Добавить и закончить':'Дальше')+'</button>'+
+      '<div class="sort-act" style="grid-template-columns:1fr"><button type="button" class="soft-btn" data-a="bulk-skip">Пропустить это фото</button></div>','',''); }
   if(t==='sort'){ var sq=sortQueue(), cur=sq[0];
     if(!cur) return sheetWrap('Разобрать','<div class="sort-done"><b>Всё разобрано</b><p class="muted">Дел без блока больше нет.</p></div><button class="primary" data-a="close">Готово</button>','','');
     var tot=UI.sortTotal||sq.length, n=Math.min(tot,tot-sq.length+1);
@@ -966,6 +978,11 @@ function act(a,el){
     case 'lgenre': UI.lgenre=el.dataset.v; render(); break;
     case 'lgpick': { var gi0=document.getElementById('f-genre'), gv=el.dataset.v, gl=splitG(gi0.value), gx=gl.findIndex(function(x){return x.toLowerCase()===gv.toLowerCase();});
       if(gx>=0) gl.splice(gx,1); else gl.push(gv); gi0.value=gl.join(', '); el.classList.toggle('on',gx<0); el.setAttribute('aria-pressed',String(gx<0)); break; }
+    case 'bulk-pick': { PICK={target:'bulk',lk:UI.lk||'books'}; var fpm=document.getElementById('file-multi'); fpm.value=''; fpm.click(); break; }
+    case 'bulk-next': { var B1=BULK; if(!B1) break; var bt=val('f-title'); if(!bt){ document.getElementById('f-title').focus(); toast('Впишите название'); break; }
+      var bst1=curBst(B1.lk), bi={id:uid(),title:bt,genre:splitG(val('f-genre')).join(', '),text:'',photo:'',at:Date.now(),st:bst1,doneAt:bst1==='done'?iso(today0()):''};
+      S.lists[B1.lk].unshift(bi); save(); B1.made++; bulkUpload(bi.id,B1.files[B1.i]); B1.i++; bulkShow(); break; }
+    case 'bulk-skip': { if(BULK){ BULK.i++; bulkShow(); } break; }
     case 'lphoto': { PICK={target:'litem'}; var fpl=document.getElementById('file-pick'); fpl.value=''; fpl.click(); break; }
     case 'lphoto-rm': { if(UI.sheet.photo&&UI.sheet.photo!==UI.sheet.orig) delPhoto(UI.sheet.photo); UI.sheet.photo=''; rerenderKeep(); break; }
     case 'store': UI.store=el.dataset.v; render(); break;
@@ -1080,7 +1097,16 @@ document.addEventListener('keydown',function(k){
   if(k.key==='Escape'&&UI.zoom){ UI.zoom=null; rerenderKeep(); return; }
   if(k.key==='Escape'&&UI.sheet){ closeSheet(); render(); }
 });
-var PICK=null;
+var PICK=null, BULK=null;
+function bulkEnd(){ if(BULK) BULK.urls.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(_){} }); BULK=null; }
+function bulkShow(){ render(); var n=document.querySelector('.sheet'); if(n){ n.classList.add('still'); var bd=n.closest('.backdrop'); if(bd) bd.classList.add('still'); n.scrollTop=0; } }
+function bulkUpload(itemId,file){ uploadCover(file).then(function(path){ var f=lFind(itemId); if(!f){ delPhoto(path); return; } f.it.photo=path; save(); if(!UI.sheet) render(); },
+  function(err){ toast('Обложка не загрузилась: '+((err&&err.message)||'ошибка')); }); }
+document.getElementById('file-multi').addEventListener('change',function(){
+  var fs=[].slice.call(this.files||[]).filter(function(f){ return !f.type||/^image\//.test(f.type); }); if(!fs.length||!PICK||PICK.target!=='bulk') return; var lk=PICK.lk; PICK=null;
+  if(fs.length>40){ fs=fs.slice(0,40); toast('Берём первые 40 фото'); }
+  bulkEnd(); BULK={lk:lk,files:fs,urls:fs.map(function(f){ return URL.createObjectURL(f); }),i:0,made:0}; UI.sheet={type:'lbulk'}; render();
+});
 document.getElementById('file-pick').addEventListener('change',function(){
   var f=this.files&&this.files[0]; if(!f||!PICK) return; var P=PICK; PICK=null;
   if(P.target==='litem'){ var sh0=UI.sheet; toast('Загружаю фото…',true);
